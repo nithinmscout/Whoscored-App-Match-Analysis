@@ -41,6 +41,20 @@ def _is_true(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _schedule_dir() -> Path:
+    return DATA_ROOT / "data" / "Schedule"
+
+
+def _events_dir() -> Path:
+    preferred = DATA_ROOT / "data" / "Event Data"
+    alternate = DATA_ROOT / "data" / "Event data"
+    return preferred if preferred.exists() else alternate
+
+
+def _data_is_ready() -> bool:
+    return _schedule_dir().exists() and _events_dir().exists()
+
+
 def _safe_extract(archive: zipfile.ZipFile, target_dir: Path) -> None:
     target_root = target_dir.resolve()
 
@@ -52,15 +66,38 @@ def _safe_extract(archive: zipfile.ZipFile, target_dir: Path) -> None:
     archive.extractall(target_root)
 
 
+def _move_if_needed(source: Path, target: Path) -> None:
+    if source.exists() and not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(target))
+
+
+def _normalise_extracted_layout() -> None:
+    data_dir = DATA_ROOT / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    _move_if_needed(DATA_ROOT / "Schedule", data_dir / "Schedule")
+    _move_if_needed(DATA_ROOT / "Event Data", data_dir / "Event Data")
+    _move_if_needed(DATA_ROOT / "Event data", data_dir / "Event data")
+    _move_if_needed(DATA_ROOT / "_cache", data_dir / "_cache")
+
+
 def data_bootstrap_status() -> dict[str, Any]:
     data_dir = DATA_ROOT / "data"
     marker_path = DATA_ROOT / _MARKER_FILE
+    schedule_dir = _schedule_dir()
+    events_dir = _events_dir()
+
     payload = dict(_BOOTSTRAP_STATUS)
     payload["data_root"] = str(DATA_ROOT)
     payload["data_dir"] = str(data_dir)
+    payload["schedule_dir"] = str(schedule_dir)
+    payload["events_dir"] = str(events_dir)
     payload["data_dir_exists"] = data_dir.exists()
+    payload["schedule_dir_exists"] = schedule_dir.exists()
+    payload["events_dir_exists"] = events_dir.exists()
     payload["marker_exists"] = marker_path.exists()
-    payload["ready"] = bool(payload.get("ready")) or (data_dir.exists() and marker_path.exists())
+    payload["ready"] = bool(payload.get("ready")) or _data_is_ready()
     return payload
 
 
@@ -71,7 +108,7 @@ def bootstrap_data_zip() -> None:
             {
                 "enabled": False,
                 "running": False,
-                "ready": False,
+                "ready": _data_is_ready(),
                 "message": "DATA_ZIP_URL is not set.",
             }
         )
@@ -96,7 +133,7 @@ def bootstrap_data_zip() -> None:
     )
 
     try:
-        if data_dir.exists() and marker_path.exists() and not force_refresh:
+        if _data_is_ready() and marker_path.exists() and not force_refresh:
             _BOOTSTRAP_STATUS.update(
                 {
                     "running": False,
@@ -107,8 +144,10 @@ def bootstrap_data_zip() -> None:
             )
             return
 
-        if force_refresh and data_dir.exists():
+        if data_dir.exists():
             shutil.rmtree(data_dir)
+
+        marker_path.unlink(missing_ok=True)
 
         _BOOTSTRAP_STATUS["message"] = "Downloading data.zip from DATA_ZIP_URL."
 
@@ -128,9 +167,11 @@ def bootstrap_data_zip() -> None:
             with zipfile.ZipFile(zip_path) as archive:
                 _safe_extract(archive, DATA_ROOT)
 
-            if not data_dir.exists():
+            _normalise_extracted_layout()
+
+            if not _data_is_ready():
                 raise FileNotFoundError(
-                    "The downloaded zip did not create a data folder. The zip must contain a top level data folder."
+                    "The downloaded zip must contain both data/Schedule and data/Event Data."
                 )
 
             marker_path.write_text("ready", encoding="utf-8")
