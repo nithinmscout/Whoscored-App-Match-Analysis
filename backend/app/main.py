@@ -1,7 +1,4 @@
-# .\venv-win\Scripts\activate
-# uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-# C:\Program Files\Google\Chromium\chrome.exe
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 
@@ -9,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analysis, debug, loader, processed, spatial, viewer
+from app.core.data_bootstrap import bootstrap_data_zip
 
 app = FastAPI(title="WhoScored Match Analysis API")
 
@@ -28,6 +26,11 @@ def get_cors_origins() -> list[str]:
     ]
 
     return list(dict.fromkeys(DEFAULT_CORS_ORIGINS + deployed_origins))
+
+
+@app.on_event("startup")
+def startup_bootstrap_data() -> None:
+    bootstrap_data_zip()
 
 
 app.add_middleware(
