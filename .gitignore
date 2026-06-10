@@ -5,3 +5,8 @@ venv-win/
 backend/__pycache__/
 frontend/node_modules/
 frontend/dist/
+__pycache__/
+*.pyc
+backend/downloaded_files/
+Whoscored Match Analysis App.md
+repomix.config.json
