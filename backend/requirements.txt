@@ -1,0 +1,22 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+matplotlib
+plotly
+soccerdata==1.8.8; python_version < "3.14"
+soccerdata==1.9.0; python_version >= "3.14"
+mplsoccer
+requests
+beautifulsoup4
+pydantic
+python-multipart
+openpyxl
+scikit-learn
+reportlab
+lxml
+socceraction
+seleniumbase
+multimethod==1.12
+pyarrow
+scrapling[fetchers]
