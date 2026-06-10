@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analysis, debug, loader, processed, spatial, viewer
-from app.core.data_bootstrap import bootstrap_data_zip
+from app.core.data_bootstrap import data_bootstrap_status, start_data_bootstrap_thread
 
 app = FastAPI(title="WhoScored Match Analysis API")
 
@@ -30,7 +30,7 @@ def get_cors_origins() -> list[str]:
 
 @app.on_event("startup")
 def startup_bootstrap_data() -> None:
-    bootstrap_data_zip()
+    start_data_bootstrap_thread()
 
 
 app.add_middleware(
@@ -52,3 +52,8 @@ app.include_router(processed.router, prefix="/api/processed", tags=["Processed"]
 @app.get("/")
 def root() -> dict[str, str]:
     return {"message": "WhoScored Match Analysis backend is running"}
+
+
+@app.get("/api/data/status")
+def api_data_status() -> dict[str, object]:
+    return data_bootstrap_status()
